@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -60,7 +61,7 @@ func decrypt(private_key string) {
 
 		choice := Reader()
 		if choice == "y" {
-			path_to_received := "received/" + filename
+			path_to_received := filepath.Join("received", filename)
 			file, err := os.Create(path_to_received)
 			error_handle(err)
 			defer file.Close()
@@ -72,27 +73,14 @@ func decrypt(private_key string) {
 
 	} else if decrypted_message_string[:9] == "largefile" {
 		fmt.Println("Message is a large file, please use the decrypt file option")
+		// probably shouldn't be happening, since the function is only on for 1MB files+ but just in case
 		return
 
 	} else {
-		// if not a file then it is a message
+		// if not a file then it is a message by default
 		fmt.Println("Decrypted message:")
-		// remove the type string
+		// remove the type string and print the rest 
 		fmt.Println(decrypted_message_string[7:])
-	}
-
-}
-
-func determine_type_of_message(message string) string {
-	// check the type of the message
-	// if first 4 characters are "file" then it is a file
-	fmt.Println("Message:", message[:10])
-	if message[:4] == "file" {
-		return "file"
-	} else if message[:9] == "largefile" {
-		return "largefile"
-	} else {
-		return "message"
 	}
 
 }
@@ -129,8 +117,6 @@ func decrypt_file(private_key string, dir string) {
 		return
 	}
 
-
-
 	for i := 0; i < len(encrypted_message_array); i++ {
 		encrypted_message_bytes, err := base64.StdEncoding.DecodeString(encrypted_message_array[i])
 		error_handle(err)
@@ -154,7 +140,7 @@ func decrypt_file(private_key string, dir string) {
 		choice := Reader()
 
 		if choice == "y" {
-			received_dir_file := dir + "received/" + filename
+			received_dir_file := filepath.Join(dir, "received", filename)
 			file, err := os.Create(received_dir_file)
 			error_handle(err)
 			defer file.Close()
@@ -184,13 +170,12 @@ func decrypt_file_large(dir string, private_key string, encrypted_filename strin
 	encrypted_message_bytes, err := ioutil.ReadFile(encrypted_filename)
 	error_handle(err)
 	encrypted_message = string(encrypted_message_bytes)
-	
+
 	encrypted_message_array := strings.Split(encrypted_message, " ")
 	// 0 is header 1 is aes key 2 is file
 
 	encrypted_base64_aes_key := encrypted_message_array[1]
 	encrypted_base64_file := strings.Join(encrypted_message_array[2:], " ")
-	
 
 	// decrypt the aes key
 	private_key_bytes, err := base64.StdEncoding.DecodeString(private_key)
@@ -226,12 +211,6 @@ func decrypt_file_large(dir string, private_key string, encrypted_filename strin
 
 	decrypted_file_string := string(decrypted_file) // this is the raw data of the file + the filename
 
-	// write to a file for dev
-	file, err := os.Create("decrypted_file.txt")
-	error_handle(err)
-	defer file.Close()
-	file.Write([]byte(decrypted_file_string))
-
 	// message is in the form file|length_of_filename|filename|file_contents
 
 	header := strings.SplitN(decrypted_file_string, "|", 4) // use 4 to split only 3 times so that the last part is the file contents, since contents can have |b
@@ -242,7 +221,7 @@ func decrypt_file_large(dir string, private_key string, encrypted_filename strin
 	fmt.Println("Do you want to save the file? (y/N)")
 	choice := Reader()
 	if choice == "y" {
-		received_dir_file := dir + "received/" + filename
+		received_dir_file := filepath.Join(dir, "received", filename)
 		file, err := os.Create(received_dir_file)
 		error_handle(err)
 		defer file.Close()

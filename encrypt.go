@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 func encrypt(dir string) {
-	// take what is to be encrypted
-
+	// encrypt a message
 	var message string
 	fmt.Println("What would you like to encrypt?")
 	fmt.Println("Please enter the message here:")
@@ -29,7 +29,6 @@ func encrypt(dir string) {
 
 	// receiver will need to know what to do with the message
 	// hence will respond accordingly and remove the type string
-	// final message will be the original message not including the type string
 
 	// take the public key to encrypt with
 	var name string
@@ -37,7 +36,8 @@ func encrypt(dir string) {
 	fmt.Println("Please enter the username here:")
 	name = Reader()
 
-	if _, err := os.Stat(dir + name + "_public_key.pem"); os.IsNotExist(err) {
+	public_key_path := filepath.Join(dir, name+"_public_key.pem")
+	if _, err := os.Stat(public_key_path); os.IsNotExist(err) {
 		fmt.Println(red + "Public key does not exist!" + white)
 
 		return
@@ -45,7 +45,7 @@ func encrypt(dir string) {
 
 	// read the file
 
-	public_key, err := ioutil.ReadFile(dir + name + "_public_key.pem")
+	public_key, err := ioutil.ReadFile(public_key_path)
 	error_handle(err)
 
 	// encrypt the message
@@ -63,20 +63,18 @@ func encrypt(dir string) {
 	// encrypt each chuck
 	// put the encrypted chucks together seperated by a newline
 
-	// encrypt the message within
-
 	encrypted_message_array := make([]string, (len(message)/440)+1)
 
 	for i := 0; i < (len(message)/440)+1; i++ {
 
-		//encrypted_message, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, parsed_public_key.(*rsa.PublicKey), []byte(message[i*440:(i+1)*440]), nil)
 		if (i+1)*440 > len(message) {
+
 			encrypted_message, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, parsed_public_key.(*rsa.PublicKey), []byte(message[i*440:]), nil)
 			error_handle(err)
 
 			encrypted_message = []byte(base64.StdEncoding.EncodeToString((encrypted_message)))
 			encrypted_message_array[i] = string(encrypted_message)
-		} else { // last chunk code block otherwise it will be searching for parts of the message that don't exist
+		} else { // last chunk code block otherwise it will be searching for parts of the message that don't exist (out of range)
 			encrypted_message, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, parsed_public_key.(*rsa.PublicKey), []byte(message[i*440:(i+1)*440]), nil)
 			error_handle(err)
 
@@ -98,30 +96,30 @@ func encrypt(dir string) {
 
 func encrypt_file(dir string) {
 
-	// take what is to be encrypted
 	var message string
 	fmt.Println("Enter a path to the file relative to your current working directory (e.g. file.txt):")
-	filepath := Reader()
+	filepath_unencrypted := Reader()
 
 	// find the file size
-	file_info, err := os.Stat(filepath)
+	file_info, err := os.Stat(filepath_unencrypted)
 	error_handle(err)
-
-	if file_info.Size() > 1000000 { // 1mB
-		fmt.Println(yellow + "File size is over 1MB, will use AES RSA encryption method instead" + white)
-		encrypt_file_large(filepath, dir)
+	// if the file is over 1MB, use AES RSA encryption method since it is faster
+	// RSA can take a long time to encrypt large files whereas AES is much faster since it is symmetric
+	if file_info.Size() > 1000000 { // 1MB
+		fmt.Println(yellow + "File size is over 1MB, RSA + AES in use" + white)
+		encrypt_file_large(filepath_unencrypted, dir)
 		return
 
 	} else {
-		fmt.Println("File size is under 1MB, will use RSA encryption method instead")
+		fmt.Println(yellow + "File size is under 1MB, RSA in use" + white)
 	}
 
-	file_contents, err := ioutil.ReadFile(filepath)
+	file_contents, err := ioutil.ReadFile(filepath_unencrypted)
 	error_handle(err)
 
-	filename := filepath[strings.LastIndex(filepath, "/")+1:] // this will get the filename from the path
+	filename := filepath_unencrypted[strings.LastIndex(filepath_unencrypted, "/")+1:] // this will get the filename from the path
 
-	filename_safe := strings.ReplaceAll(filename, "|", "_") // replace any | with _
+	filename_safe := strings.ReplaceAll(filename, "|", "_") // replace any | with _ since | is used as the spliting character on the receiver side
 
 	// type the message so the receiver knows what to do with it
 	length_of_filename := len(filename_safe)
@@ -133,15 +131,16 @@ func encrypt_file(dir string) {
 	fmt.Println("What is the public key of the person you want to encrypt to?")
 	fmt.Println("Please enter the username here:")
 	name = Reader()
+	public_key_path := filepath.Join(dir, name+"_public_key.pem")
 
-	if _, err := os.Stat(dir + name + "_public_key.pem"); os.IsNotExist(err) {
+	if _, err := os.Stat(public_key_path); os.IsNotExist(err) {
 		fmt.Println(red + "Public key does not exist!" + white)
 
 		return
 	}
 	// read the file
 
-	public_key, err := ioutil.ReadFile(dir + name + "_public_key.pem")
+	public_key, err := ioutil.ReadFile(public_key_path)
 	error_handle(err)
 
 	public_key_bytes, err := base64.StdEncoding.DecodeString(string(public_key))
@@ -175,8 +174,8 @@ func encrypt_file(dir string) {
 		to_display += encrypted_message_array[i] + " "
 	}
 	to_display = strings.TrimSuffix(to_display, " ")
+	path_to_sent := filepath.Join(dir, "sent", filename)
 
-	path_to_sent := dir + "sent/" + filename
 	encrypted_file, err := os.Create(path_to_sent + ".enc")
 	error_handle(err)
 	defer encrypted_file.Close()
@@ -185,7 +184,7 @@ func encrypt_file(dir string) {
 
 }
 
-func encrypt_file_large(filepath string, dir string) {
+func encrypt_file_large(filepath_unencrypted string, dir string) {
 	// will use aes to encrypt the file
 	// then encrypt the aes key with rsa
 	// then the file will have the aes key attached to it, encrypted with rsa and then the actual file encrypted with aes
@@ -194,12 +193,12 @@ func encrypt_file_large(filepath string, dir string) {
 	// function is not meant to be called directly, only called from encrypt_file
 	var message string
 
-	file_contents, err := ioutil.ReadFile(filepath)
+	file_contents, err := ioutil.ReadFile(filepath_unencrypted)
 	error_handle(err)
 
-	filename := filepath[strings.LastIndex(filepath, "/")+1:] // this will get the filename from the path
+	filename_unencrypted := filepath_unencrypted[strings.LastIndex(filepath_unencrypted, "/")+1:] // this will get the filename from the path
 
-	filename_safe := strings.ReplaceAll(filename, "|", "_") // replace any | with _
+	filename_safe := strings.ReplaceAll(filename_unencrypted, "|", "_") // replace any | with _
 
 	// type the message so the receiver knows what to do with it
 	length_of_filename := len(filename_safe)
@@ -210,8 +209,9 @@ func encrypt_file_large(filepath string, dir string) {
 	fmt.Println("What is the public key of the person you want to encrypt to?")
 	fmt.Println("Please enter the username here:")
 	name = Reader()
+	public_key_path := filepath.Join(dir, name+"_public_key.pem")
 
-	if _, err := os.Stat(dir + name + "_public_key.pem"); os.IsNotExist(err) {
+	if _, err := os.Stat(public_key_path); os.IsNotExist(err) {
 		fmt.Println(red + "Public key does not exist!" + white)
 
 		return
@@ -241,7 +241,7 @@ func encrypt_file_large(filepath string, dir string) {
 	encrypted_message := gcm.Seal(nonce, nonce, []byte(message), nil)
 
 	// encrypt the key with rsa
-	public_key, err := ioutil.ReadFile(dir + name + "_public_key.pem")
+	public_key, err := ioutil.ReadFile(public_key_path)
 	error_handle(err)
 
 	public_key_bytes, err := base64.StdEncoding.DecodeString(string(public_key))
@@ -254,8 +254,10 @@ func encrypt_file_large(filepath string, dir string) {
 	error_handle(err)
 
 	// save the encrypted key and the encrypted message to a file
-	path_to_sent := dir + "sent/" + filename
-	encrypted_file, err := os.Create(path_to_sent + ".enc")
+
+	path_to_sent := filepath.Join(dir, "sent", filename_safe)
+	path_to_sent_w_ext := filepath.Join(path_to_sent + ".enc")
+	encrypted_file, err := os.Create(path_to_sent_w_ext)
 	error_handle(err)
 	defer encrypted_file.Close()
 
@@ -273,7 +275,7 @@ func encrypt_file_large(filepath string, dir string) {
 
 	encrypted_file.Write([]byte(complete_message))
 
-	fmt.Println("Encrypted file:", path_to_sent+".enc")
+	fmt.Println("Encrypted file:", path_to_sent_w_ext)
 
 	// take the public key to encrypt with
 
