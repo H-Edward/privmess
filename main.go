@@ -7,8 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-
-	"golang.org/x/tools/go/analysis/passes/nilfunc"
 )
 
 // File structure of the program
