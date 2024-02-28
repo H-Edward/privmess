@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-func encrypt(dir string) {
+func encrypt(dir string, private_key string) {
 	// encrypt a message
 	var message string
 	fmt.Println("What would you like to encrypt?")
@@ -92,6 +92,21 @@ func encrypt(dir string) {
 	to_display = strings.TrimSuffix(to_display, " ")
 	fmt.Println(to_display)
 
+	fmt.Println()
+
+	fmt.Println("Would you like a signature of the message for message integrity? (y/N)")
+	fmt.Println("This will be encrypted with your private key and sent with the message so the receiver can be sure it is from you.")
+	choice := Reader()
+	if choice == "y" {
+
+		private_key_bytes, err := base64.StdEncoding.DecodeString(private_key)
+		error_handle(err)
+		parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
+		error_handle(err)
+		signature := make_signature_of_message(parsed_private_key, message)
+		fmt.Println("Signature of message:")
+		fmt.Println(string(signature))
+	}
 }
 
 func encrypt_file(dir string) {
@@ -181,6 +196,22 @@ func encrypt_file(dir string) {
 	defer encrypted_file.Close()
 	encrypted_file.Write([]byte(to_display))
 	fmt.Println("Encrypted file:", path_to_sent+".enc")
+
+	fmt.Println()
+
+	fmt.Println("Would you like a signature of the file for message integrity? (y/N)")
+	fmt.Println("This will be encrypted with your private key and sent with the message so the receiver can be sure it is from you.")
+	choice := Reader()
+	if choice == "y" {
+		private_key, _ := ioutil.ReadFile(filepath.Join(dir, "my_private_key.pem"))
+		private_key_bytes, err := base64.StdEncoding.DecodeString(string(private_key))
+		error_handle(err)
+		parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
+		error_handle(err)
+		signature := make_signature_of_file(parsed_private_key, filepath_unencrypted)
+		fmt.Println("Signature of file:")
+		fmt.Println(string(signature))
+	}
 
 }
 
@@ -277,6 +308,21 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 
 	fmt.Println("Encrypted file:", path_to_sent_w_ext)
 
+	fmt.Println()
+
+	fmt.Println("Would you like a signature of the file for message integrity? (y/N)")
+	fmt.Println("This will be encrypted with your private key and sent with the message so the receiver can be sure it is from you.")
+	choice := Reader()
+	if choice == "y" {
+		private_key, _ := ioutil.ReadFile(filepath.Join(dir, "my_private_key.pem"))
+		private_key_bytes, err := base64.StdEncoding.DecodeString(string(private_key))
+		error_handle(err)
+		parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
+		error_handle(err)
+		signature := make_signature_of_file(parsed_private_key, filepath_unencrypted)
+		fmt.Println("Signature of file:")
+		fmt.Println(string(signature))
+	}
 	// take the public key to encrypt with
 
 }

@@ -29,6 +29,14 @@ import (
 // the private key is crucial to you, its the only way to decrypt messages sent to you
 // the public key is what you give to others so that they can encrypt messages to you
 
+// messages and small files are encrypted using just rsa
+// larger files are encrypted using a combination of rsa and aes
+
+// the rsa key size is 4096 bits
+
+// signatures are made using the private key as opposed to the public key so that the signature can be verified by anyone with the public key
+// however since the signature is made in part from the unencrypted data, the sender's identity is hidden, since only the recepient can 
+
 const ( // color codes
 	red    = "\033[31m"
 	yellow = "\033[33m"
@@ -109,7 +117,7 @@ func main() {
 
 		switch choice {
 		case "1":
-			encrypt(dir)
+			encrypt(dir, private_key)
 		case "2":
 			encrypt_file(dir)
 		case "3":

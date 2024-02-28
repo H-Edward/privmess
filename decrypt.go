@@ -79,8 +79,25 @@ func decrypt(private_key string) {
 	} else {
 		// if not a file then it is a message by default
 		fmt.Println("Decrypted message:")
-		// remove the type string and print the rest 
+		// remove the type string and print the rest
 		fmt.Println(decrypted_message_string[7:])
+	}
+
+	fmt.Println("Do you want to check a signature? (y/N)")
+	choice := Reader()
+	if choice == "y" {
+		fmt.Println("Please enter the signature here:")
+		signature := Reader()
+		// conv to bytes
+		sig := []byte(signature)
+		// check the signature
+
+		verified, username := verify_signature_of_message(decrypted_message_string, sig)
+		if verified {
+			fmt.Println("Signature verified, signed by:", username)
+		} else {
+			fmt.Println("Signature not verified")
+		}
 	}
 
 }
@@ -138,9 +155,9 @@ func decrypt_file(private_key string, dir string) {
 		fmt.Println("Message is a file with the name:", filename)
 		fmt.Println("Do you want to save the file? (y/N)")
 		choice := Reader()
-
+		var received_dir_file string
 		if choice == "y" {
-			received_dir_file := filepath.Join(dir, "received", filename)
+			received_dir_file = filepath.Join(dir, "received", filename)
 			file, err := os.Create(received_dir_file)
 			error_handle(err)
 			defer file.Close()
@@ -155,6 +172,22 @@ func decrypt_file(private_key string, dir string) {
 				fmt.Println("Encrypted file deleted")
 			} else {
 				fmt.Println("Encrypted file not deleted")
+			}
+			fmt.Println("Do you want to check a signature? (y/N)")
+			sig_choice := Reader()
+			if sig_choice == "y" {
+				fmt.Println("Please enter the signature here:")
+				signature := Reader()
+				// conv to bytes
+				sig := []byte(signature)
+				// check the signature
+
+				verified, username := verify_signature_of_file(received_dir_file, sig)
+				if verified {
+					fmt.Println("Signature verified, signed by:", username)
+				} else {
+					fmt.Println("Signature not verified")
+				}
 			}
 
 		}
@@ -237,7 +270,23 @@ func decrypt_file_large(dir string, private_key string, encrypted_filename strin
 		} else {
 			fmt.Println("Encrypted file not deleted")
 		}
+		fmt.Println("Do you want to check a signature? (y/N)")
+		sig_choice := Reader()
+		if sig_choice == "y" {
+			fmt.Println("Please enter the signature here:")
+			signature := Reader()
+			// conv to bytes
+			sig := []byte(signature)
+			// check the signature
 
+			verified, username := verify_signature_of_file(received_dir_file, sig)
+			if verified {
+				fmt.Println(blue+"Signature verified, signed by:", username, white)
+			} else {
+				fmt.Println(red+"Signature not verified", white)
+
+			}
+		}
 	}
 
 }

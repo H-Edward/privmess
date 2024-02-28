@@ -47,20 +47,28 @@ func add_public_key(dir string) {
 
 }
 
-func list_all_public_keys(dir string) {
+func list_all_public_keys(dir string) []string {
 	// list all the public keys except for my_public_key.pem and my_private_key.pem
-
+	var public_keys []string
 	files, err := ioutil.ReadDir(dir)
 	error_handle(err)
+	fmt.Println("Public keys:")
 	for _, file := range files {
 		if !file.IsDir() {
-			if file.Name() != (filepath.Join(dir, "my_public_key.pem")) && file.Name() != (filepath.Join(dir, "my_private_key.pem")) {
-				if file.Name()[len(file.Name())-4:] == ".pem" {
-					fmt.Println(file.Name())
+			if file.Name()[len(file.Name())-4:] == ".pem" { // only add pem files
+				if file.Name() != "my_public_key.pem" {
+					if file.Name() != "my_private_key.pem" {
+
+						fmt.Println(file.Name())
+						// add the public key file path to the array
+						public_key_path := filepath.Join(dir, file.Name())
+						public_keys = append(public_keys, public_key_path)
+					}
 				}
 			}
 		}
 	}
+	return public_keys
 }
 
 func print_my_public_key(dir string) {
@@ -158,4 +166,26 @@ func backup_keys(dir string) {
 	fmt.Println("Backup complete!")
 	final_zip_path := filepath.Join(dir, "keys.zip")
 	fmt.Println("The backup is located at:"+blue, final_zip_path+white)
+}
+func list_all_public_keys_for_func(dir string) []string {
+	// practically the same as list_all_public_keys but for use in other functions
+	// doesn't have any print statements
+
+	var public_keys []string
+	files, err := ioutil.ReadDir(dir)
+	error_handle(err)
+	for _, file := range files {
+		if !file.IsDir() {
+			if file.Name()[len(file.Name())-4:] == ".pem" { // only add pem files
+				if file.Name() != "my_public_key.pem" {
+					if file.Name() != "my_private_key.pem" {
+						// add the public key file path to the array
+						public_key_path := filepath.Join(dir, file.Name())
+						public_keys = append(public_keys, public_key_path)
+					}
+				}
+			}
+		}
+	}
+	return public_keys
 }
