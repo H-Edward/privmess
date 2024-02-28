@@ -117,7 +117,11 @@ func encrypt_file(dir string) {
 
 	// find the file size
 	file_info, err := os.Stat(filepath_unencrypted)
-	error_handle(err)
+	if os.IsNotExist(err) {
+		fmt.Println(red + "File does not exist!" + white)
+		return
+	}
+
 	// if the file is over 1MB, use AES RSA encryption method since it is faster
 	// RSA can take a long time to encrypt large files whereas AES is much faster since it is symmetric
 	if file_info.Size() > 1000000 { // 1MB

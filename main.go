@@ -35,7 +35,7 @@ import (
 // the rsa key size is 4096 bits
 
 // signatures are made using the private key as opposed to the public key so that the signature can be verified by anyone with the public key
-// however since the signature is made in part from the unencrypted data, the sender's identity is hidden, since only the recepient can 
+// however since the signature is made in part from the unencrypted data, the sender's identity is hidden, since only the recepient can
 
 const ( // color codes
 	red    = "\033[31m"
@@ -73,10 +73,13 @@ func setup() (string, string) {
 
 	// make sure sent and received directories exist
 	if _, err := os.Stat(filepath.Join(directory, "sent")); os.IsNotExist(err) {
-		os.Mkdir(directory+"sent", 0755)
+		path := filepath.Join(directory, "sent")
+		os.Mkdir(path, 0755)
 	}
 	if _, err := os.Stat(filepath.Join(directory, "received")); os.IsNotExist(err) {
-		os.Mkdir(directory+"received", 0755)
+		path := filepath.Join(directory, "received")
+
+		os.Mkdir(path, 0755)
 
 	}
 
