@@ -47,8 +47,9 @@ func add_public_key(dir string) {
 
 }
 
-func list_all_public_keys(dir string) []string {
+func list_all_public_keys(dir string) {
 	// list all the public keys except for my_public_key.pem and my_private_key.pem
+	// just print the names of the public keys, other function will output array of public keys
 	var public_keys []string
 	files, err := ioutil.ReadDir(dir)
 	error_handle(err)
@@ -60,15 +61,11 @@ func list_all_public_keys(dir string) []string {
 					if file.Name() != "my_private_key.pem" {
 
 						fmt.Println(file.Name())
-						// add the public key file path to the array
-						public_key_path := filepath.Join(dir, file.Name())
-						public_keys = append(public_keys, public_key_path)
 					}
 				}
 			}
 		}
 	}
-	return public_keys
 }
 
 func print_my_public_key(dir string) {

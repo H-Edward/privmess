@@ -117,7 +117,7 @@ func main() {
 
 		switch choice {
 		case "1":
-			encrypt(dir, private_key)
+			encrypt(dir)
 		case "2":
 			encrypt_file(dir)
 		case "3":
