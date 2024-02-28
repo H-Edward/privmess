@@ -92,6 +92,21 @@ func encrypt(dir string) {
 	to_display = strings.TrimSuffix(to_display, " ")
 	fmt.Println(to_display)
 
+	fmt.Println()
+
+	fmt.Println("Would you like a signature of the message for message integrity? (y/N)")
+	fmt.Println("This will be encrypted with your private key and sent with the message so the receiver can be sure it is from you.")
+	choice := Reader()
+	if choice == "y" {
+		private_key, _ := ioutil.ReadFile(filepath.Join(dir, "my_private_key.pem"))
+		private_key_bytes, err := base64.StdEncoding.DecodeString(string(private_key))
+		error_handle(err)
+		parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
+		error_handle(err)
+		signature := make_signature_of_message(parsed_private_key, message)
+		fmt.Println("Signature of message:")
+		fmt.Println(string(signature))
+	}
 }
 
 func encrypt_file(dir string) {
@@ -102,7 +117,11 @@ func encrypt_file(dir string) {
 
 	// find the file size
 	file_info, err := os.Stat(filepath_unencrypted)
-	error_handle(err)
+	if os.IsNotExist(err) {
+		fmt.Println(red + "File does not exist!" + white)
+		return
+	}
+
 	// if the file is over 1MB, use AES RSA encryption method since it is faster
 	// RSA can take a long time to encrypt large files whereas AES is much faster since it is symmetric
 	if file_info.Size() > 1000000 { // 1MB
@@ -180,7 +199,24 @@ func encrypt_file(dir string) {
 	error_handle(err)
 	defer encrypted_file.Close()
 	encrypted_file.Write([]byte(to_display))
+
 	fmt.Println("Encrypted file:", path_to_sent+".enc")
+
+	fmt.Println()
+
+	fmt.Println("Would you like a signature of the file for message integrity? (y/N)")
+	fmt.Println("This will be encrypted with your private key and sent with the message so the receiver can be sure it is from you.")
+	choice := Reader()
+	if choice == "y" {
+		private_key, _ := ioutil.ReadFile(filepath.Join(dir, "my_private_key.pem"))
+		private_key_bytes, err := base64.StdEncoding.DecodeString(string(private_key))
+		error_handle(err)
+		parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
+		error_handle(err)
+		signature := make_signature_of_file(parsed_private_key, filepath_unencrypted)
+		fmt.Println("Signature of file:")
+		fmt.Println(string(signature))
+	}
 
 }
 
@@ -190,10 +226,11 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 	// then the file will have the aes key attached to it, encrypted with rsa and then the actual file encrypted with aes
 	// the receiver will decrypt the aes key with rsa and then decrypt the file with aes
 
-	// function is not meant to be called directly, only called from encrypt_file
-	var message string
+	// when dealing with data, make sure not to load the entire file into memory since it could be very large
 
-	file_contents, err := ioutil.ReadFile(filepath_unencrypted)
+	// function is not meant to be called directly, only called from encrypt_file
+
+	message, err := ioutil.ReadFile(filepath_unencrypted)
 	error_handle(err)
 
 	filename_unencrypted := filepath_unencrypted[strings.LastIndex(filepath_unencrypted, "/")+1:] // this will get the filename from the path
@@ -203,7 +240,6 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 	// type the message so the receiver knows what to do with it
 	length_of_filename := len(filename_safe)
 
-	message = "largefile" + "|" + string(length_of_filename) + "|" + filename_safe + "|" + string(file_contents)
 	// take the public key to encrypt with
 	var name string
 	fmt.Println("What is the public key of the person you want to encrypt to?")
@@ -261,22 +297,37 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 	error_handle(err)
 	defer encrypted_file.Close()
 
-	encrypted_key_string := base64.StdEncoding.EncodeToString(encrypted_key)
 	header := "largefile" + "|" + string(length_of_filename) + "|" + filename_safe
 	// conv to base64
 	// encrypt the header
 
 	encrypted_header, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, parsed_public_key.(*rsa.PublicKey), []byte(header), nil)
 	error_handle(err)
-	encrypted_header = []byte(base64.StdEncoding.EncodeToString(encrypted_header))
 
-	encrypted_message = []byte(base64.StdEncoding.EncodeToString(encrypted_message))
-	complete_message := string(encrypted_header) + " " + encrypted_key_string + " " + string(encrypted_message)
+	encrypted_header_string := base64.StdEncoding.EncodeToString(encrypted_header)
+	encrypted_key_string := base64.StdEncoding.EncodeToString(encrypted_key)
+	encrypted_message_string := base64.StdEncoding.EncodeToString(encrypted_message)
+
+	complete_message := encrypted_header_string + " " + encrypted_key_string + " " + string(encrypted_message_string)
 
 	encrypted_file.Write([]byte(complete_message))
 
 	fmt.Println("Encrypted file:", path_to_sent_w_ext)
 
-	// take the public key to encrypt with
+	fmt.Println()
+
+	fmt.Println("Would you like a signature of the file for message integrity? (y/N)")
+	fmt.Println("This will be encrypted with your private key and sent with the message so the receiver can be sure it is from you.")
+	choice := Reader()
+	if choice == "y" {
+		private_key, _ := ioutil.ReadFile(filepath.Join(dir, "my_private_key.pem"))
+		private_key_bytes, err := base64.StdEncoding.DecodeString(string(private_key))
+		error_handle(err)
+		parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
+		error_handle(err)
+		signature := make_signature_of_file(parsed_private_key, filepath_unencrypted)
+		fmt.Println("Signature of file:")
+		fmt.Println(string(signature))
+	}
 
 }
