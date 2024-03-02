@@ -9,10 +9,16 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+const (
+	kb = 1024
 )
 
 func encrypt(dir string) {
@@ -221,26 +227,12 @@ func encrypt_file(dir string) {
 }
 
 func encrypt_file_large(filepath_unencrypted string, dir string) {
-	// will use aes to encrypt the file
-	// then encrypt the aes key with rsa
-	// then the file will have the aes key attached to it, encrypted with rsa and then the actual file encrypted with aes
-	// the receiver will decrypt the aes key with rsa and then decrypt the file with aes
-
-	// when dealing with data, make sure not to load the entire file into memory since it could be very large
-
-	// function is not meant to be called directly, only called from encrypt_file
-
-	message, err := ioutil.ReadFile(filepath_unencrypted)
-	error_handle(err)
+	var err error
 
 	filename_unencrypted := filepath_unencrypted[strings.LastIndex(filepath_unencrypted, "/")+1:] // this will get the filename from the path
-
-	filename_safe := strings.ReplaceAll(filename_unencrypted, "|", "_") // replace any | with _
-
-	// type the message so the receiver knows what to do with it
+	filename_safe := strings.ReplaceAll(filename_unencrypted, "|", "_")                           // replace any | with _
 	length_of_filename := len(filename_safe)
 
-	// take the public key to encrypt with
 	var name string
 	fmt.Println("What is the public key of the person you want to encrypt to?")
 	fmt.Println("Please enter the username here:")
@@ -273,9 +265,6 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 	_, err = rand.Read(nonce)
 	error_handle(err)
 
-	// encrypt the message
-	encrypted_message := gcm.Seal(nonce, nonce, []byte(message), nil)
-
 	// encrypt the key with rsa
 	public_key, err := ioutil.ReadFile(public_key_path)
 	error_handle(err)
@@ -298,19 +287,65 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 	defer encrypted_file.Close()
 
 	header := "largefile" + "|" + string(length_of_filename) + "|" + filename_safe
-	// conv to base64
-	// encrypt the header
 
 	encrypted_header, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, parsed_public_key.(*rsa.PublicKey), []byte(header), nil)
 	error_handle(err)
 
 	encrypted_header_string := base64.StdEncoding.EncodeToString(encrypted_header)
 	encrypted_key_string := base64.StdEncoding.EncodeToString(encrypted_key)
-	encrypted_message_string := base64.StdEncoding.EncodeToString(encrypted_message)
 
-	complete_message := encrypted_header_string + " " + encrypted_key_string + " " + string(encrypted_message_string)
+	encrypted_file.Write([]byte(encrypted_header_string + " " + encrypted_key_string))
 
-	encrypted_file.Write([]byte(complete_message))
+	// stream file into the encryption algorithm
+	// this is to avoid loading the entire file into memory
+	// then write the encrypted file to the file
+	// with a space between each chunk of data
+
+	file, err := os.Open(filepath_unencrypted)
+	error_handle(err)
+	defer file.Close()
+
+	// make a loop to read the file in chunks
+
+	for {
+		encrypted_file.Write([]byte(" ")) // space between each chunk of data
+		buffer := make([]byte, 16*kb)
+		bytesRead, err := file.Read(buffer)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatal(err)
+		}
+
+		// encrypt the buffer
+		encrypted_file_chunk := gcm.Seal(nonce, nonce, buffer[:bytesRead], nil)
+
+		// write the encrypted buffer to the file
+		encrypted_file.Write([]byte(base64.StdEncoding.EncodeToString(encrypted_file_chunk)))
+	}
+
+	// remove final space if there on the file
+	// Move to the penultimate position
+	_, err = encrypted_file.Seek(-1, 2)
+	error_handle(err)
+
+	// Read the last character
+	size1 := make([]byte, 1)
+	_, err = encrypted_file.Read(size1)
+	error_handle(err)
+
+	encrypted_file_info, err := encrypted_file.Stat()
+	error_handle(err)
+	if size1[0] == byte(' ') {
+		// Truncate the file
+		err = encrypted_file.Truncate(encrypted_file_info.Size() - 1)
+		error_handle(err)
+	} else if size1[0] == byte('\n') {
+		// Truncate the file
+		err = encrypted_file.Truncate(encrypted_file_info.Size() - 1)
+		error_handle(err)
+	}
 
 	fmt.Println("Encrypted file:", path_to_sent_w_ext)
 
@@ -325,9 +360,8 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 		error_handle(err)
 		parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
 		error_handle(err)
-		signature := make_signature_of_file(parsed_private_key, filepath_unencrypted)
+		signature := make_signature_of_largefile(parsed_private_key, filepath_unencrypted)
 		fmt.Println("Signature of file:")
 		fmt.Println(string(signature))
 	}
-
 }
