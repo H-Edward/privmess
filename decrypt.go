@@ -117,7 +117,6 @@ func decrypt_file(private_key string, dir string) {
 	fmt.Println("Please enter the filename here:")
 	encrypted_filename := Reader()
 
-	// read the first part of the file since it could be a large file
 
 	buffer := make([]byte, 684)
 
