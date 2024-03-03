@@ -179,7 +179,7 @@ func decrypt_file(private_key string, dir string) {
 	// if first 4 characters are "file" then it is a file
 	if decrypted_message_string[:4] == "file" {
 		// message is in the form file|length_of_filename|filename|file_contents
-		header := strings.Split(decrypted_message_string, "|")
+		header := strings.SplitN(decrypted_message_string, "|", 4)
 		filename := header[2]
 		file_contents := header[3]
 
