@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -35,6 +36,26 @@ func make_signature_of_file(private_key *rsa.PrivateKey, file_path string) []byt
 	encoded_signature := base64.StdEncoding.EncodeToString(sig)
 	return []byte(encoded_signature)
 
+}
+
+func make_signature_of_largefile(private_key *rsa.PrivateKey, file_path string) []byte {
+	// entire file should not be read into memory
+
+	file, err := os.Open(file_path)
+	error_handle(err)
+	defer file.Close()
+
+	hash := sha256.New()
+	_, err = io.Copy(hash, file)
+	error_handle(err)
+
+	hashed := hash.Sum(nil)
+
+	sig, err := rsa.SignPSS(rand.Reader, private_key, crypto.SHA256, hashed, nil)
+	error_handle(err)
+
+	encoded_signature := base64.StdEncoding.EncodeToString(sig)
+	return []byte(encoded_signature)
 }
 
 func verify_signature_of_message(message string, signature []byte) (bool, string) {
@@ -102,4 +123,41 @@ func verify_signature_of_file(file_path string, signature []byte) (bool, string)
 	}
 	return false, " "
 
+}
+
+func verify_signature_of_largefile(file_path string, signature []byte) (bool, string) {
+	// entire file should not be read into memory
+	file, err := os.Open(file_path)
+	error_handle(err)
+	defer file.Close()
+
+	hash := sha256.New()
+	_, err = io.Copy(hash, file)
+	error_handle(err)
+	hashed := hash.Sum(nil)
+
+	filename, _ := os.Executable()
+	dir := filepath.Dir(filename)
+
+	public_keys := list_all_public_keys_for_func(dir)
+	// check each public key against the signature and if found, return the public key username
+	for _, public_key := range public_keys {
+		public_key_bytes, err := ioutil.ReadFile(public_key)
+		error_handle(err)
+		public_key_bytes, err = base64.StdEncoding.DecodeString(string(public_key_bytes))
+		error_handle(err)
+
+		parsed_public_key, err := x509.ParsePKIXPublicKey(public_key_bytes)
+		error_handle(err)
+		rsa_public_key := parsed_public_key.(*rsa.PublicKey)
+		sig, err := base64.StdEncoding.DecodeString(string(signature))
+		error_handle(err)
+
+		err = rsa.VerifyPSS(rsa_public_key, crypto.SHA256, hashed, sig, nil)
+
+		if err == nil {
+			return true, public_key
+		}
+	}
+	return false, " "
 }

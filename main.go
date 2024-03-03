@@ -124,7 +124,7 @@ func main() {
 		case "2":
 			encrypt_file(dir)
 		case "3":
-			decrypt(private_key)
+			decrypt(private_key, dir)
 		case "4":
 			decrypt_file(private_key, dir)
 		case "5":
