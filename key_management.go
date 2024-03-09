@@ -14,14 +14,9 @@ import (
 )
 
 func add_public_key(dir string) {
-	var username string
-	var public_key string
-
 	fmt.Println("What is the username of the person you want to add?")
 	fmt.Println("Please enter the username here:")
-	_, err := fmt.Scanln(&username)
-
-	error_handle(err)
+	username := Reader()
 	public_key_path := filepath.Join(dir, username+"_public_key.pem")
 
 	// check if the public key already exists
@@ -35,13 +30,17 @@ func add_public_key(dir string) {
 	// get the public key
 	fmt.Println("What is the public key of the person you want to add?")
 	fmt.Println("Please paste the public key here:")
-	_, err = fmt.Scanln(&public_key)
-	error_handle(err)
+	public_key := Reader()
 
 	// save the public key
 
 	public_key_file, err := os.Create(public_key_path)
-	error_handle(err)
+	if err != nil {
+		fmt.Println(red, "Error creating public key file", white)
+		fmt.Println(err)
+		return
+	}
+
 	defer public_key_file.Close()
 	public_key_file.Write([]byte(public_key))
 
@@ -51,14 +50,18 @@ func list_all_public_keys(dir string) {
 	// list all the public keys except for my_public_key.pem and my_private_key.pem
 	// just print the names of the public keys, other function will output array of public keys
 	files, err := ioutil.ReadDir(dir)
-	error_handle(err)
+	if err != nil {
+		fmt.Println(red, "Error reading directory", white)
+		fmt.Println(err)
+		return
+	}
+
 	fmt.Println("Public keys:")
 	for _, file := range files {
 		if !file.IsDir() {
 			if file.Name()[len(file.Name())-4:] == ".pem" { // only add pem files
 				if file.Name() != "my_public_key.pem" {
 					if file.Name() != "my_private_key.pem" {
-
 						fmt.Println(file.Name())
 					}
 				}
@@ -73,7 +76,12 @@ func print_my_public_key(dir string) {
 	path_to_public_key := filepath.Join(dir, "my_public_key.pem")
 
 	data, err := ioutil.ReadFile(path_to_public_key)
-	error_handle(err)
+	if err != nil {
+		fmt.Println(red, "Error reading public key", white)
+		fmt.Println(err)
+		return
+	}
+
 	fmt.Println(string(data))
 
 }
@@ -90,7 +98,12 @@ func print_my_private_key(dir string) {
 	}
 	path_to_private_key := filepath.Join(dir, "my_private_key.pem")
 	data, err := ioutil.ReadFile(path_to_private_key)
-	error_handle(err)
+	if err != nil {
+		fmt.Println(red, "Error reading private key", white)
+		fmt.Println(err)
+		return
+	}
+
 	fmt.Println(string(data))
 }
 

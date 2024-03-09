@@ -89,6 +89,8 @@ func setup() (string, string) {
 func error_handle(error_message error) {
 	// simple error handling
 	// if there is an error, print the error and exit
+	// function should be used lightly as it is a catch all when it is not sensible to carry on
+	// hence why it is a fatal error
 	if error_message != nil {
 		log.Fatal(error_message)
 	}
@@ -114,10 +116,7 @@ func main() {
 		fmt.Println(yellow + "9." + white + " Backup keys")
 		fmt.Println(yellow + "10." + white + " Exit")
 
-		var choice string
-		_, err := fmt.Scanln(&choice)
-		error_handle(err)
-
+		choice := Reader()
 		switch choice {
 		case "1":
 			encrypt(dir)
