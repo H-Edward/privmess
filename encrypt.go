@@ -229,6 +229,13 @@ func encrypt_file(dir string) {
 func encrypt_file_large(filepath_unencrypted string, dir string) {
 	var err error
 
+	// will be used for progress bar
+	fileInfo, err := os.Stat(filepath_unencrypted)
+	if err != nil {
+		log.Fatal(err)
+	}
+	totalSize := fileInfo.Size()
+
 	filename_unencrypted := filepath_unencrypted[strings.LastIndex(filepath_unencrypted, "/")+1:] // this will get the filename from the path
 	filename_safe := strings.ReplaceAll(filename_unencrypted, "|", "_")                           // replace any | with _
 	length_of_filename := len(filename_safe)
@@ -307,7 +314,24 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 
 	// make a loop to read the file in chunks
 
+	// Create a channel to report progress
+	progress_channel := make(chan int64, 1)
+
+	// Start a goroutine to print progress
+	go func() {
+		var last_progress int
+		for processed := range progress_channel {
+			progress := int(float64(processed) / float64(totalSize) * 100)
+			rounded_progress := progress / 5 * 5
+			if rounded_progress != last_progress {
+				fmt.Printf("\rProgress: %d%%", rounded_progress)
+				last_progress = rounded_progress
+			}
+		}
+	}()
+	var processed int64
 	for {
+
 		encrypted_file.Write([]byte(" ")) // space between each chunk of data
 		buffer := make([]byte, 16*kb)
 		bytesRead, err := file.Read(buffer)
@@ -323,6 +347,9 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 
 		// write the encrypted buffer to the file
 		encrypted_file.Write([]byte(base64.StdEncoding.EncodeToString(encrypted_file_chunk)))
+		processed += int64(16 * kb)
+		progress_channel <- processed
+
 	}
 
 	// remove final space if there on the file
@@ -347,7 +374,7 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 		error_handle(err)
 	}
 
-	fmt.Println("Encrypted file:", path_to_sent_w_ext)
+	fmt.Println("\nEncrypted file:", path_to_sent_w_ext)
 
 	fmt.Println()
 

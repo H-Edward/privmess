@@ -104,6 +104,8 @@ func decrypt(private_key string, dir string) {
 			fmt.Println("Signature verified, signed by:", username)
 		} else {
 			fmt.Println("Signature not verified")
+			fmt.Println("Message may be corrupted, tampered with or not from the original sender")
+
 		}
 	}
 
@@ -116,7 +118,6 @@ func decrypt_file(private_key string, dir string) {
 	fmt.Println("What would you like to decrypt?")
 	fmt.Println("Please enter the filename here:")
 	encrypted_filename := Reader()
-
 
 	buffer := make([]byte, 684)
 
@@ -218,6 +219,8 @@ func decrypt_file(private_key string, dir string) {
 					fmt.Println("Signature verified, signed by:", username)
 				} else {
 					fmt.Println("Signature not verified")
+					fmt.Println("File may be corrupted, tampered with or not from the original sender")
+
 				}
 			}
 
@@ -231,6 +234,10 @@ func decrypt_file_large(dir string, private_key string, encrypted_filename strin
 	error_handle(err)
 	parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
 	error_handle(err)
+
+	file_info, err := os.Stat(encrypted_filename)
+	error_handle(err)
+	total_size := file_info.Size()
 
 	// only first 2 chunks are encrypted using the key and the rest are encrypted using aes
 
@@ -308,7 +315,24 @@ func decrypt_file_large(dir string, private_key string, encrypted_filename strin
 
 	_, _ = file.Seek(1370, 0)
 
-	buffer_data := make([]byte, 21884) //
+	buffer_data := make([]byte, 21884)
+
+	// logic for progress bar
+
+	progress_channel := make(chan int64, 1)
+
+	go func() {
+		var last_printed_progress int
+		for processed := range progress_channel {
+			progress := int(float64(processed) / float64(total_size) * 100)
+			rounded_progress := progress / 5 * 5
+			if rounded_progress != last_printed_progress {
+				fmt.Printf("\rProgress: %d%%", rounded_progress)
+				last_printed_progress = rounded_progress
+			}
+		}
+	}()
+	var processed int64 = 0
 
 	// logic for reading the file
 	var received_dir_file string
@@ -352,10 +376,14 @@ func decrypt_file_large(dir string, private_key string, encrypted_filename strin
 		_, err = file.Seek(1, 1) // 1 from the current position for the space
 		error_handle(err)
 
-	}
+		// send progress to the channel
+		processed += 21884
+		progress_channel <- processed
 
+	}
+	close(progress_channel)
 	// sig verification
-	fmt.Println("Do you want to check a signature? (y/N)")
+	fmt.Println("\nDo you want to check a signature? (y/N)")
 	sig_choice := Reader()
 	if sig_choice == "y" {
 		fmt.Println("Please enter the signature here:")
@@ -369,6 +397,7 @@ func decrypt_file_large(dir string, private_key string, encrypted_filename strin
 			fmt.Println("Signature verified, signed by:", username)
 		} else {
 			fmt.Println("Signature not verified")
+			fmt.Println("File may be corrupted, tampered with or not from the original sender")
 		}
 	}
 
