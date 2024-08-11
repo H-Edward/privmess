@@ -24,6 +24,8 @@ AES is only used on files over 1MB
 
 Another way to interact with the program is through flags, e.g.
 
+_(this is in a "beta" stage, so it may not work as expected)_
+
 `./privmess -e -r recipient -i file.txt -o encrypted_file.txt`
 
 or
@@ -37,6 +39,16 @@ or
 or
 
 `echo "encrypted message" | ./privmess -d`
+
+or
+
+`./privmess -d -m "encrypted message" -s -p "signature"`
+
+or
+
+`./privmess -d -i "encrypted_file.enc" -o "decrypted_file.txt" -s -p "signature"`
+
+
 
 See `./privmess -h` for some more information about the flags.
 
