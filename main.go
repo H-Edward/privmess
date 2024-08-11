@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -44,11 +45,12 @@ const ( // color codes
 	blue   = "\033[34m"
 )
 
-func Reader() string { // read from the console
+func Reader() string { // read from the command line
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	return scanner.Text()
 }
+
 func setup() (string, string) {
 	// the init of the program
 
@@ -95,13 +97,124 @@ func error_handle(error_message error) {
 		log.Fatal(error_message)
 	}
 }
+
 func main() {
+	fi, err := os.Stdin.Stat()
+	error_handle(err)
+
+	private_key, dir := setup()
+
+	recipient_pointer := flag.String("r", "", "The recipient of the message")
+	encrypt_pointer := flag.Bool("e", false, "Encrypt choice")
+	string_message_pointer := flag.String("m", "", "The message which you want to encrypt/decrypt")
+
+	decrypt_pointer := flag.Bool("d", false, "Whether you want to decrypt")
+	output_file_pointer := flag.String("o", "", "The output file")
+	input_file_pointer := flag.String("i", "", "The input file")
+	sig_requirement_pointer := flag.Bool("s", false, "Whether you want to require a signature")
+	sig_data_pointer := flag.String("p", "", "The signature data (only for decryption)")
+	flag.Parse()
+
+	if *decrypt_pointer && *encrypt_pointer {
+		fmt.Println(red + "You cannot encrypt and decrypt at the same time" + white)
+		return
+	}
+
+	if *encrypt_pointer {
+		if *recipient_pointer == "" {
+			fmt.Println(red + "Recipient not specified" + white)
+			return
+		}
+		if !check_key_exists(*recipient_pointer, dir) { // check if the recipient exists
+			fmt.Println(red + "Recipient does not exist" + white)
+			return
+		}
+
+		if fi.Mode()&os.ModeCharDevice == 0 { // check if there is data in stdin
+			stdin_data, err := ioutil.ReadAll(os.Stdin)
+			error_handle(err)
+			if stdin_data != nil {
+				// make sure -m flag is not used
+				if *string_message_pointer != "" {
+					fmt.Println(red + "Cannot use multiple methods at once" + white)
+					return
+				} else if *input_file_pointer != "" {
+					fmt.Println(red + "Cannot use multiple methods at once" + white)
+					return
+				}
+				encrypt_message_flag(dir, *recipient_pointer, stdin_data, *sig_requirement_pointer)
+				return
+			}
+		}
+		// if message is not in stdin, check if message is in the flag
+		if *string_message_pointer != "" {
+			encrypt_message_flag(dir, *recipient_pointer, []byte(*string_message_pointer), *sig_requirement_pointer)
+			return
+		}
+
+		// check if input_file exists
+		if _, err := os.Stat(*input_file_pointer); os.IsNotExist(err) {
+			fmt.Println(red + "Input file does not exist" + white)
+			return
+		}
+		// all methods of input are exhausted, must be a file
+		if *output_file_pointer == "" {
+			// default
+			*output_file_pointer = filepath.Join(dir, "sent", *input_file_pointer+".enc")
+		}
+		outputfile_name := filepath.Clean(*output_file_pointer)
+		encrypt_file_flag(dir, *recipient_pointer, *input_file_pointer, *sig_requirement_pointer, outputfile_name)
+		return
+
+	}
+
+	if *decrypt_pointer {
+		if fi.Mode()&os.ModeCharDevice == 0 { // check if there is data in stdin
+			stdin_data, err := ioutil.ReadAll(os.Stdin)
+			error_handle(err)
+			if stdin_data != nil {
+				if *input_file_pointer != "" {
+					fmt.Println(red + "Cannot use multiple methods at once" + white)
+					return
+				} else if *string_message_pointer != "" {
+					fmt.Println(red + "Cannot use multiple methods at once" + white)
+					return
+				}
+
+				decrypt_message_flag(private_key, dir, stdin_data, *sig_requirement_pointer, *sig_data_pointer)
+				return
+			}
+		}
+		if *string_message_pointer != "" {
+
+			if *input_file_pointer != "" {
+				fmt.Println(red + "Cannot use multiple methods at once" + white)
+				return
+			}
+
+			decrypt_message_flag(private_key, dir, []byte(*string_message_pointer), *sig_requirement_pointer, *sig_data_pointer)
+			return
+		}
+		if _, err := os.Stat(*input_file_pointer); os.IsNotExist(err) {
+			fmt.Println(red + "Input file does not exist" + white)
+			return
+		}
+		// can omit these, since the once decrypted, the file will receive its original name
+		// so unless the user wants to change the name, it is not necessary
+		//if *output_file_pointer == "" {
+		//*output_file_pointer = filepath.Join(dir, "received", *input_file_pointer))
+		//}
+
+
+		decrypt_file_flag(private_key, dir, *input_file_pointer, *output_file_pointer , *sig_requirement_pointer, *sig_data_pointer)
+		return
+	}
+
 	exit := false // condition for the loop
 
 	fmt.Println(blue+"Welcome to the encryption program", white)
 	for !exit { // main loop
 
-		private_key, dir := setup()
 		// dir is the directory of the go executable, where the keys are stored
 
 		fmt.Println("What would you like to do?")

@@ -17,60 +17,24 @@ import (
 	"strings"
 )
 
-const (
-	kb = 1024
-)
+// seperating the encryption functions into 2 files to make the code more readable
+// this file contains the functions for encrypting messages and files when using the parameter approach
 
-func encrypt(dir string) { 
-	// encrypt a message
-	var message string
-	fmt.Println("What would you like to encrypt?")
-	fmt.Println("Please enter the message here:")
-	message = Reader()
-	// message needs to be appended with a type
-	// so that the receiver knows what to do with it
-	// e.g. "message" or "file"
+func encrypt_message_flag(dir string, recipient string, message_byte []byte, sig_requirement bool) {
+	message := string(message_byte)
 
 	message = "message" + message
 
-	// receiver will need to know what to do with the message
-	// hence will respond accordingly and remove the type string
-
-	// take the public key to encrypt with
-	var name string
-	fmt.Println("What is the public key of the person you want to encrypt to?")
-	fmt.Println("Please enter the username here:")
-	name = Reader()
-
-	public_key_path := filepath.Join(dir, name+"_public_key.pem")
-	if _, err := os.Stat(public_key_path); os.IsNotExist(err) {
-		fmt.Println(red + "Public key does not exist!" + white)
-
-		return
-	}
-
-	// read the file
-
-	public_key, err := ioutil.ReadFile(public_key_path)
+	public_key, err := ioutil.ReadFile(filepath.Join(dir, recipient+"_public_key.pem"))
 	error_handle(err)
 
-	// encrypt the message
-
-	// decode the public key
 	public_key_bytes, err := base64.StdEncoding.DecodeString(string(public_key))
 	error_handle(err)
 
-	// parse the public key
 	parsed_public_key, err := x509.ParsePKIXPublicKey(public_key_bytes)
 	error_handle(err)
 
-	// break message into chucks of 440 bytes (440 for ease of use)
-	// The message must be no longer than the length of the public modulus minus twice the hash length, minus a further 2. - documentation
-	// encrypt each chuck
-	// put the encrypted chucks together seperated by a newline
-
 	encrypted_message_array := make([]string, (len(message)/440)+1)
-
 	for i := 0; i < (len(message)/440)+1; i++ {
 
 		if (i+1)*440 > len(message) {
@@ -89,7 +53,6 @@ func encrypt(dir string) {
 		}
 
 	}
-
 	fmt.Println("Encrypted message:")
 	var to_display string
 	for i := 0; i < len(encrypted_message_array); i++ {
@@ -100,10 +63,7 @@ func encrypt(dir string) {
 
 	fmt.Println()
 
-	fmt.Println("Would you like a signature of the message for message integrity? (y/N)")
-	fmt.Println("This will be encrypted with your private key and sent with the message so the receiver can be sure it is from you.")
-	choice := Reader()
-	if choice == "y" {
+	if sig_requirement {
 		private_key, _ := ioutil.ReadFile(filepath.Join(dir, "my_private_key.pem"))
 		private_key_bytes, err := base64.StdEncoding.DecodeString(string(private_key))
 		error_handle(err)
@@ -113,28 +73,18 @@ func encrypt(dir string) {
 		fmt.Println("Signature of message:")
 		fmt.Println(string(signature))
 	}
+
 }
 
-func encrypt_file(dir string) {
+func encrypt_file_flag(dir string, recipient string, filepath_unencrypted string, sig_requirement bool, output_file string) {
 
-	var message string
-	fmt.Println("Enter a path to the file relative to your current working directory (e.g. file.txt):")
-	filepath_unencrypted := Reader()
-
-	// find the file size
 	file_info, err := os.Stat(filepath_unencrypted)
-	if os.IsNotExist(err) {
-		fmt.Println(red + "File does not exist!" + white)
-		return
-	}
+	error_handle(err)
 
-	// if the file is over 1MB, use AES RSA encryption method since it is faster
-	// RSA can take a long time to encrypt large files whereas AES is much faster since it is symmetric
-	if file_info.Size() > 1000000 { // 1MB
+	if file_info.Size() > 1000000 {
 		fmt.Println(yellow + "File size is over 1MB, RSA + AES in use" + white)
-		encrypt_file_large(filepath_unencrypted, dir)
+		encrypt_file_large_flag(dir, recipient, filepath_unencrypted, sig_requirement, output_file)
 		return
-
 	} else {
 		fmt.Println(yellow + "File size is under 1MB, RSA in use" + white)
 	}
@@ -149,23 +99,9 @@ func encrypt_file(dir string) {
 	// type the message so the receiver knows what to do with it
 	length_of_filename := len(filename_safe)
 
-	message = "file" + "|" + string(length_of_filename) + "|" + filename_safe + "|" + string(file_contents)
+	message := "file" + "|" + string(length_of_filename) + "|" + filename_safe + "|" + string(file_contents)
 
-	// take the public key to encrypt with
-	var name string
-	fmt.Println("What is the public key of the person you want to encrypt to?")
-	fmt.Println("Please enter the username here:")
-	name = Reader()
-	public_key_path := filepath.Join(dir, name+"_public_key.pem")
-
-	if _, err := os.Stat(public_key_path); os.IsNotExist(err) {
-		fmt.Println(red + "Public key does not exist!" + white)
-
-		return
-	}
-	// read the file
-
-	public_key, err := ioutil.ReadFile(public_key_path)
+	public_key, err := ioutil.ReadFile(filepath.Join(dir, recipient+"_public_key.pem"))
 	error_handle(err)
 
 	public_key_bytes, err := base64.StdEncoding.DecodeString(string(public_key))
@@ -175,7 +111,6 @@ func encrypt_file(dir string) {
 	error_handle(err)
 
 	encrypted_message_array := make([]string, (len(message)/440)+1)
-
 	for i := 0; i < (len(message)/440)+1; i++ {
 
 		if (i+1)*440 > len(message) {
@@ -199,54 +134,45 @@ func encrypt_file(dir string) {
 		to_display += encrypted_message_array[i] + " "
 	}
 	to_display = strings.TrimSuffix(to_display, " ")
-	path_to_sent := filepath.Join(dir, "sent", filename)
 
-	encrypted_file, err := os.Create(path_to_sent + ".enc")
+	encrypted_file, err := os.Create(output_file)
 	error_handle(err)
 	defer encrypted_file.Close()
 	encrypted_file.Write([]byte(to_display))
 
-	fmt.Println("Encrypted file:", path_to_sent+".enc")
-
+	fmt.Println("Encrypted file:", output_file)
 	fmt.Println()
 
-	fmt.Println("Would you like a signature of the file for message integrity? (y/N)")
-	fmt.Println("This will be encrypted with your private key and sent with the message so the receiver can be sure it is from you.")
-	choice := Reader()
-	if choice == "y" {
+	if sig_requirement {
 		private_key, _ := ioutil.ReadFile(filepath.Join(dir, "my_private_key.pem"))
 		private_key_bytes, err := base64.StdEncoding.DecodeString(string(private_key))
 		error_handle(err)
 		parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
 		error_handle(err)
-		signature := make_signature_of_file(parsed_private_key, filepath_unencrypted)
-		fmt.Println("Signature of file:")
+		signature := make_signature_of_message(parsed_private_key, message)
+		fmt.Println("Signature of message:")
 		fmt.Println(string(signature))
 	}
 
 }
 
-func encrypt_file_large(filepath_unencrypted string, dir string) {
+func encrypt_file_large_flag(dir string, recipient string, filepath_unencrypted string, sig_requirement bool, output_file string) {
 	var err error
 
 	filename_unencrypted := filepath_unencrypted[strings.LastIndex(filepath_unencrypted, "/")+1:] // this will get the filename from the path
 	filename_safe := strings.ReplaceAll(filename_unencrypted, "|", "_")                           // replace any | with _
 	length_of_filename := len(filename_safe)
 
-	var name string
-	fmt.Println("What is the public key of the person you want to encrypt to?")
-	fmt.Println("Please enter the username here:")
-	name = Reader()
-	public_key_path := filepath.Join(dir, name+"_public_key.pem")
+	public_key_path := filepath.Join(dir, recipient+"_public_key.pem")
+	public_key, err := ioutil.ReadFile(public_key_path)
+	error_handle(err)
 
-	if _, err := os.Stat(public_key_path); os.IsNotExist(err) {
-		fmt.Println(red + "Public key does not exist!" + white)
+	public_key_bytes, err := base64.StdEncoding.DecodeString(string(public_key))
+	error_handle(err)
 
-		return
-	}
+	parsed_public_key, err := x509.ParsePKIXPublicKey(public_key_bytes)
+	error_handle(err)
 
-	// do aes encryption on the message
-	// generate a random key
 	key := make([]byte, 32)
 	_, err = rand.Read(key)
 	error_handle(err)
@@ -265,23 +191,15 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 	_, err = rand.Read(nonce)
 	error_handle(err)
 
-	// encrypt the key with rsa
-	public_key, err := ioutil.ReadFile(public_key_path)
-	error_handle(err)
-
-	public_key_bytes, err := base64.StdEncoding.DecodeString(string(public_key))
-	error_handle(err)
-
-	parsed_public_key, err := x509.ParsePKIXPublicKey(public_key_bytes)
-	error_handle(err)
-
 	encrypted_key, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, parsed_public_key.(*rsa.PublicKey), key, nil)
 	error_handle(err)
 
-	// save the encrypted key and the encrypted message to a file
-
 	path_to_sent := filepath.Join(dir, "sent", filename_safe)
 	path_to_sent_w_ext := filepath.Join(path_to_sent + ".enc")
+	if output_file != "" {
+		path_to_sent_w_ext = output_file
+	}
+
 	encrypted_file, err := os.Create(path_to_sent_w_ext)
 	error_handle(err)
 	defer encrypted_file.Close()
@@ -351,18 +269,15 @@ func encrypt_file_large(filepath_unencrypted string, dir string) {
 
 	fmt.Println()
 
-	fmt.Println("Would you like a signature of the file for message integrity? (y/N)")
-	fmt.Println("This will be encrypted with your private key and sent with the message so the receiver can be sure it is from you.")
-	choice := Reader()
-	if choice == "y" {
+	if sig_requirement {
 		private_key, _ := ioutil.ReadFile(filepath.Join(dir, "my_private_key.pem"))
 		private_key_bytes, err := base64.StdEncoding.DecodeString(string(private_key))
 		error_handle(err)
 		parsed_private_key, err := x509.ParsePKCS1PrivateKey(private_key_bytes)
 		error_handle(err)
-		signature := make_signature_of_largefile(parsed_private_key, filepath_unencrypted)
-		fmt.Println("Signature of file:")
+		signature := make_signature_of_message(parsed_private_key, header)
+		fmt.Println("Signature of message:")
 		fmt.Println(string(signature))
 	}
-}
 
+}

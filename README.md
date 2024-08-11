@@ -14,13 +14,31 @@ for the first time
 
 `make build`
 
-then (and future use)
+then for a tui interface
 
 `./privmess`
 
 keys need to be in the root of the directory - including your private key.
 
 AES is only used on files over 1MB
+
+Another way to interact with the program is through flags, e.g.
+
+`./privmess -e -r recipient -i file.txt -o encrypted_file.txt`
+
+or
+
+`echo "Hello, World!" | ./privmess -e -r recipient`
+
+or
+
+`./privmess -d -i encrypted_file.txt -o file.txt`
+
+or
+
+`echo "encrypted message" | ./privmess -d`
+
+See `./privmess -h` for some more information about the flags.
 
 ## How to update
 

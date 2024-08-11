@@ -198,3 +198,12 @@ func list_all_public_keys_for_func(dir string) []string {
 	}
 	return public_keys
 }
+
+func check_key_exists(username string, dir string) bool {
+	// check if the public key exists
+	public_key_path := filepath.Join(dir, username+"_public_key.pem")
+	if _, err := os.Stat(public_key_path); err == nil {
+		return true
+	}
+	return false
+}
