@@ -63,7 +63,8 @@ func decrypt_message_flag(private_key string, dir string, message_byte []byte, s
 		fmt.Println("Large (1MB+) inputted, please use the file method (-i) to decrypt")
 	} else {
 		fmt.Println("Decrypted message:")
-		fmt.Println(decrypted_message_string)
+		// remove the header (message currently starts with "message"
+		fmt.Println(decrypted_message_string[7:])
 
 	}
 
