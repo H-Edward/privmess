@@ -46,9 +46,7 @@ or
 
 or
 
-`./privmess -d -i "encrypted_file.enc" -o "decrypted_file.txt" -s -p "signature"`
-
-
+`./privmess -d -i "encrypted_file.enc" -o "decrypted_file.txt" -s -S "signature"`
 
 See `./privmess -h` for some more information about the flags.
 

@@ -104,15 +104,18 @@ func main() {
 
 	private_key, dir := setup()
 
+	decrypt_pointer := flag.Bool("d", false, "Decrypt a message/file")
+
+	encrypt_pointer := flag.Bool("e", false, "Encrypt a message/file")
+
 	recipient_pointer := flag.String("r", "", "The recipient of the message")
-	encrypt_pointer := flag.Bool("e", false, "Encrypt choice")
+
 	string_message_pointer := flag.String("m", "", "The message which you want to encrypt/decrypt")
 
-	decrypt_pointer := flag.Bool("d", false, "Whether you want to decrypt")
 	output_file_pointer := flag.String("o", "", "The output file")
-	input_file_pointer := flag.String("i", "", "The input file")
+	input_file_pointer := flag.String("i", "", "Path to the input file")
 	sig_requirement_pointer := flag.Bool("s", false, "Whether you want to require a signature")
-	sig_data_pointer := flag.String("p", "", "The signature data (only for decryption)")
+	sig_data_pointer := flag.String("S", "", "The signature data (only for decryption)")
 	flag.Parse()
 
 	if *decrypt_pointer && *encrypt_pointer {
@@ -146,6 +149,11 @@ func main() {
 				return
 			}
 		}
+		if *input_file_pointer == "" && *string_message_pointer == "" {
+			fmt.Println(red + "No message or file specified" + white)
+			return
+		}
+
 		// if message is not in stdin, check if message is in the flag
 		if *string_message_pointer != "" {
 			encrypt_message_flag(dir, *recipient_pointer, []byte(*string_message_pointer), *sig_requirement_pointer)
@@ -199,14 +207,17 @@ func main() {
 			fmt.Println(red + "Input file does not exist" + white)
 			return
 		}
+		if *recipient_pointer != "" {
+			fmt.Println(yellow + "Recipient not needed for file decryption" + white)
+		}
+
 		// can omit these, since the once decrypted, the file will receive its original name
 		// so unless the user wants to change the name, it is not necessary
 		//if *output_file_pointer == "" {
 		//*output_file_pointer = filepath.Join(dir, "received", *input_file_pointer))
 		//}
 
-
-		decrypt_file_flag(private_key, dir, *input_file_pointer, *output_file_pointer , *sig_requirement_pointer, *sig_data_pointer)
+		decrypt_file_flag(private_key, dir, *input_file_pointer, *output_file_pointer, *sig_requirement_pointer, *sig_data_pointer)
 		return
 	}
 

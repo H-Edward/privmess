@@ -67,7 +67,7 @@ func decrypt_message_flag(private_key string, dir string, message_byte []byte, s
 
 	}
 
-	if sig_requirement {
+	if sig_requirement || sig_data != "" {
 		sig := []byte(sig_data)
 		verified, username := verify_signature_of_message(decrypted_message_string, sig)
 		if verified {
@@ -146,7 +146,7 @@ func decrypt_file_flag(private_key string, dir string, encrypted_filename string
 
 		fmt.Println("File saved at:", received_dir_file)
 
-		if sig_requirement {
+		if sig_requirement || sig_data != "" {
 			sig := []byte(sig_data)
 			verfified, usernmae := verify_signature_of_message(decrypted_message_string, sig)
 			if verfified {
@@ -259,7 +259,7 @@ func decrypt_file_large_flag(dir string, private_key string, encrypted_filename 
 
 	}
 
-	if sig_requirement {
+	if sig_requirement || sig_data != "" {
 
 		sig := []byte(sig_data)
 		verfified, usernmae := verify_signature_of_message(received_dir_file, sig)
