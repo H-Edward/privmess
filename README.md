@@ -42,11 +42,11 @@ or
 
 or
 
-`./privmess -d -m "encrypted message" -s -p "signature"`
+`./privmess -d -m "encrypted message" -S "signature"`
 
 or
 
-`./privmess -d -i "encrypted_file.enc" -o "decrypted_file.txt" -s -S "signature"`
+`./privmess -d -i "encrypted_file.enc" -o "decrypted_file.txt" -S "signature"`
 
 See `./privmess -h` for some more information about the flags.
 
