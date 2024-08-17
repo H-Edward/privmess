@@ -112,9 +112,9 @@ func main() {
 
 	string_message_pointer := flag.String("m", "", "The message which you want to encrypt/decrypt")
 
-	output_file_pointer := flag.String("o", "", "The output file")
+	output_file_pointer := flag.String("o", "", "Path to the output file")
 	input_file_pointer := flag.String("i", "", "Path to the input file")
-	sig_requirement_pointer := flag.Bool("s", false, "Whether you want to require a signature")
+	sig_requirement_pointer := flag.Bool("s", false, "Whether you want to require a signature (only for encryption)")
 	sig_data_pointer := flag.String("S", "", "The signature data (only for decryption)")
 	flag.Parse()
 
