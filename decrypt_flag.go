@@ -69,9 +69,9 @@ func decrypt_message_flag(private_key string, dir string, message_byte []byte, s
 
 	if sig_requirement {
 		sig := []byte(sig_data)
-		verfified, usernmae := verify_signature_of_message(decrypted_message_string, sig)
-		if verfified {
-			fmt.Println("Signature verified, signed by:", usernmae)
+		verified, username := verify_signature_of_message(decrypted_message_string, sig)
+		if verified {
+			fmt.Println("Signature verified, signed by:", username)
 		} else {
 			fmt.Println("Signature not verified")
 		}
@@ -132,7 +132,7 @@ func decrypt_file_flag(private_key string, dir string, encrypted_filename string
 		header := strings.SplitN(decrypted_message_string, "|", 4)
 		filename := header[2]
 		file_contents := header[3]
-///	
+		///
 		received_dir_file := filepath.Join(dir, "received", filename)
 		if output_filename != "" {
 			received_dir_file = output_filename
