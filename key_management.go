@@ -186,15 +186,23 @@ func list_all_public_keys_for_func(dir string) []string {
 	for _, file := range files {
 		if !file.IsDir() {
 			if file.Name()[len(file.Name())-4:] == ".pem" { // only add pem files
-				if file.Name() != "my_public_key.pem" {
-					if file.Name() != "my_private_key.pem" {
-						// add the public key file path to the array
-						public_key_path := filepath.Join(dir, file.Name())
-						public_keys = append(public_keys, public_key_path)
-					}
+				if file.Name() != "my_private_key.pem" {
+					// add the public key file path to the array
+					public_key_path := filepath.Join(dir, file.Name())
+					public_keys = append(public_keys, public_key_path)
 				}
 			}
+
 		}
 	}
 	return public_keys
+}
+
+func check_key_exists(username string, dir string) bool {
+	// check if the public key exists
+	public_key_path := filepath.Join(dir, username+"_public_key.pem")
+	if _, err := os.Stat(public_key_path); err == nil {
+		return true
+	}
+	return false
 }
